@@ -5,7 +5,7 @@
 
 from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem
 from PyQt5.QtCore import Qt, QRectF, QLineF
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QTextOption
 from task_list import TaskList
 from collections import defaultdict
 
@@ -77,11 +77,12 @@ class MainWindow(QMainWindow):
 
         # Task box dimensions
         box_width = 200
-        box_height = 100
+        min_box_height = 100  # Minimum height for task boxes
         spacing = 50
         lane_spacing = 100  # Vertical spacing between lanes
         margin = 50  # Margin from the edges
         horizontal_spacing = 0  # Space between task boxes horizontally
+        text_padding = 10  # Padding for text within boxes
 
         # Group tasks by project
         project_tasks = defaultdict(list)
@@ -94,8 +95,8 @@ class MainWindow(QMainWindow):
         for project, tasks in project_tasks.items():
             # Height for project name
             height = 40
-            # Height for tasks
-            height += len(tasks) * (box_height + spacing)
+            # Height for tasks (will be adjusted based on text wrapping)
+            height += len(tasks) * (min_box_height + spacing)
             lane_heights[project] = height
             current_y += height + lane_spacing
 
@@ -122,7 +123,21 @@ class MainWindow(QMainWindow):
                 x_pos = margin + positions[task.task_id] * (box_width + horizontal_spacing)
                 max_x = max(max_x, x_pos + box_width)
 
-                # Create task box
+                # Create task name text with wrapping
+                text = QGraphicsTextItem(task.task)
+                text.setDefaultTextColor(Qt.black)
+                text.setTextWidth(box_width - 2 * text_padding)  # Enable text wrapping
+                
+                # Set text alignment to center
+                text_option = QTextOption()
+                text_option.setAlignment(Qt.AlignCenter)
+                text.document().setDefaultTextOption(text_option)
+                
+                # Calculate required height for wrapped text
+                text_height = text.boundingRect().height()
+                box_height = max(min_box_height, text_height + 2 * text_padding)
+
+                # Create task box with calculated height
                 rect = self.scene.addRect(
                     x_pos, task_y, box_width, box_height,
                     QPen(Qt.black),
@@ -132,7 +147,7 @@ class MainWindow(QMainWindow):
                 # Add time information in upper left corner
                 time_required = QGraphicsTextItem(f"Required: {task.time_required}")
                 time_required.setDefaultTextColor(Qt.black)
-                time_required.setPos(x_pos + 5, task_y + 5)
+                time_required.setPos(x_pos + text_padding, task_y + text_padding)
                 self.scene.addItem(time_required)
 
                 # Add time spent in upper right corner
@@ -147,22 +162,16 @@ class MainWindow(QMainWindow):
                 
                 # Calculate position for right-aligned text
                 time_spent_width = time_spent.boundingRect().width()
-                time_spent_x = x_pos + box_width - time_spent_width - 5  # 5 pixels padding from right edge
-                time_spent.setPos(time_spent_x, task_y + 5)
+                time_spent_x = x_pos + box_width - time_spent_width - text_padding
+                time_spent.setPos(time_spent_x, task_y + text_padding)
                 self.scene.addItem(time_spent)
 
-                # Add task name text
-                text = QGraphicsTextItem(task.task)
-                text.setDefaultTextColor(Qt.black)
-                
-                # Center text in rectangle
-                text_width = text.boundingRect().width()
-                text_height = text.boundingRect().height()
-                text_x = x_pos + (box_width - text_width) / 2
-                text_y_pos = task_y + (box_height - text_height) / 2
-                text.setPos(text_x, text_y_pos)
-                
+                # Position task name text
+                text_x = x_pos + text_padding
+                text_y = task_y + 2 * text_padding + time_required.boundingRect().height()
+                text.setPos(text_x, text_y)
                 self.scene.addItem(text)
+
                 task_y += box_height + spacing
 
             # Draw horizontal separator line
