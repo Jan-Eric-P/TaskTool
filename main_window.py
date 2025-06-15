@@ -3,11 +3,13 @@
 @author: Jan-Eric-P
 """
 
-from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem
-from PyQt5.QtCore import Qt, QRectF, QLineF
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QTextOption
+from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem, QToolBar, QAction, QStyle
+from PyQt5.QtCore import Qt, QRectF, QLineF, QSize
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QTextOption, QIcon, QPixmap
 from task_list import TaskList
 from collections import defaultdict
+import resources_rc
+import os
 
 class MainWindow(QMainWindow):
     """
@@ -38,8 +40,54 @@ class MainWindow(QMainWindow):
         # Set view as central widget
         self.setCentralWidget(self.view)
 
+        # Create toolbar
+        self.create_toolbar()
+
         # Display tasks
         self.display_tasks()
+
+    """
+    Create toolbar with zoom controls.
+    """
+    def create_toolbar(self):
+        toolbar = QToolBar("Zoom Controls")
+        self.addToolBar(toolbar)
+
+        # Zoom in action
+        zoom_in_action = QAction(QIcon(":/icons/zoom_in_24dp.png"), "Zoom In", self)
+        zoom_in_action.setStatusTip("Zoom in")
+        zoom_in_action.triggered.connect(self.zoom_in)
+        toolbar.addAction(zoom_in_action)
+
+        # Zoom out action
+        zoom_out_action = QAction(QIcon(":/icons/zoom_out_24dp.png"), "Zoom Out", self)
+        zoom_out_action.setStatusTip("Zoom out")
+        zoom_out_action.triggered.connect(self.zoom_out)
+        toolbar.addAction(zoom_out_action)
+
+        # Reset zoom action
+        reset_zoom_action = QAction(QIcon(":/icons/view_real_size_24dp.png"), "Reset Zoom", self)
+        reset_zoom_action.setStatusTip("Reset zoom level")
+        reset_zoom_action.triggered.connect(self.reset_zoom)
+        toolbar.addAction(reset_zoom_action)
+
+    """
+    Zoom in by scaling the view.
+    """
+    def zoom_in(self):
+        self.view.scale(1.2, 1.2)
+
+    """
+    Zoom out by scaling the view.
+    """
+    def zoom_out(self):
+        self.view.scale(1/1.2, 1/1.2)
+
+    """
+    Reset zoom level to 1.0.
+    """
+    def reset_zoom(self):
+        self.view.resetTransform()
 
     """
     Calculate horizontal positions for tasks based on their dependencies.
