@@ -4,9 +4,10 @@
 """
 
 from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem
-from PyQt5.QtCore import Qt, QRectF
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
+from PyQt5.QtCore import Qt, QRectF, QLineF
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont
 from task_list import TaskList
+from collections import defaultdict
 
 class MainWindow(QMainWindow):
     """
@@ -42,7 +43,7 @@ class MainWindow(QMainWindow):
 
     def display_tasks(self):
         """
-        Display tasks as rectangles with centered text.
+        Display tasks as rectangles with centered text, grouped by project in swim lanes.
         """
         # Clear existing items
         self.scene.clear()
@@ -51,32 +52,69 @@ class MainWindow(QMainWindow):
         box_width = 200
         box_height = 100
         spacing = 50
+        lane_spacing = 100  # Vertical spacing between lanes
+        margin = 50  # Margin from the edges
 
-        # Draw each task
-        for i, task in enumerate(self.task_list.tasks):
-            # Calculate position
-            x = 50  # Fixed x position
-            y = i * (box_height + spacing) + 50  # Vertical spacing
+        # Group tasks by project
+        project_tasks = defaultdict(list)
+        for task in self.task_list.tasks:
+            project_tasks[task.project].append(task)
 
-            # Create task box
-            rect = self.scene.addRect(
-                x, y, box_width, box_height,
-                QPen(Qt.black),
-                QBrush(Qt.white)
-            )
+        # Calculate total height needed for each lane
+        lane_heights = {}
+        current_y = margin
+        for project, tasks in project_tasks.items():
+            # Height for project name
+            height = 40
+            # Height for tasks
+            height += len(tasks) * (box_height + spacing)
+            lane_heights[project] = height
+            current_y += height + lane_spacing
 
-            # Add task name text
-            text = QGraphicsTextItem(task.task)
-            text.setDefaultTextColor(Qt.black)
-            
-            # Center text in rectangle
-            text_width = text.boundingRect().width()
-            text_height = text.boundingRect().height()
-            text_x = x + (box_width - text_width) / 2
-            text_y = y + (box_height - text_height) / 2
-            text.setPos(text_x, text_y)
-            
-            self.scene.addItem(text)
+        # Draw swim lanes for each project
+        current_y = margin
+        for project, tasks in project_tasks.items():
+            # Draw project name
+            project_text = QGraphicsTextItem(project)
+            font = QFont()
+            font.setBold(True)
+            project_text.setFont(font)
+            project_text.setDefaultTextColor(Qt.black)
+            project_text.setPos(margin, current_y)
+            self.scene.addItem(project_text)
+
+            # Draw tasks in this lane
+            task_y = current_y + 40  # Start below project name
+            for task in tasks:
+                # Create task box
+                rect = self.scene.addRect(
+                    margin, task_y, box_width, box_height,
+                    QPen(Qt.black),
+                    QBrush(Qt.white)
+                )
+
+                # Add task name text
+                text = QGraphicsTextItem(task.task)
+                text.setDefaultTextColor(Qt.black)
+                
+                # Center text in rectangle
+                text_width = text.boundingRect().width()
+                text_height = text.boundingRect().height()
+                text_x = margin + (box_width - text_width) / 2
+                text_y_pos = task_y + (box_height - text_height) / 2
+                text.setPos(text_x, text_y_pos)
+                
+                self.scene.addItem(text)
+                task_y += box_height + spacing
+
+            # Draw horizontal separator line
+            if project != list(project_tasks.keys())[-1]:  # Don't draw line after last project
+                line_y = current_y + lane_heights[project] + lane_spacing/2
+                line = QLineF(margin, line_y, 
+                            margin + box_width + 100, line_y)  # Line extends beyond task width
+                self.scene.addLine(line, QPen(Qt.black, 2, Qt.DashLine))
+
+            current_y += lane_heights[project] + lane_spacing
 
         # Adjust scene rect to show all items with padding
         self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-50, -50, 50, 50)) 
