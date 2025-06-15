@@ -2,19 +2,29 @@
 """
 @author: Jan-Eric-P
 """
+
 import json
 from pathlib import Path
 
 # Configuration class
 class Configuration:
-    # constructor
-    def __init__(self, file_path):
-        self.file_path = Path(file_path)
-
+    """
+    Constructor
+    """
+    def __init__(self):
+        self.file_path = None
+        
         self.task_file_path = ""
 
-    # read and parse the configuration file
-    def read(self):
+    """
+    Read a JSON file with configuration data and store the content.
+    
+    Args:
+        file_path (str): Path to the config file
+    """
+    def read(self, file_path: str) -> None:
+        self.file_path = Path(file_path)
+        
         if not self.file_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {self.file_path}")
         
