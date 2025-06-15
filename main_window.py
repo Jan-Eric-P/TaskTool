@@ -83,6 +83,9 @@ class MainWindow(QMainWindow):
         margin = 50  # Margin from the edges
         horizontal_spacing = 0  # Space between task boxes horizontally
         text_padding = 10  # Padding for text within boxes
+        progress_bar_height = 20  # Height of the progress bar
+        progress_bar_margin = 10  # Margin between progress bar and bottom edge
+        vertical_spacing = 15  # Consistent vertical spacing between elements
 
         # Group tasks by project
         project_tasks = defaultdict(list)
@@ -138,7 +141,20 @@ class MainWindow(QMainWindow):
                 
                 # Calculate required height for wrapped text
                 text_height = text.boundingRect().height()
-                box_height = max(min_box_height, text_height + 2 * text_padding)
+                
+                # Create temporary time items to calculate their height
+                temp_time_required = QGraphicsTextItem(f"Required: {task.time_required}")
+                temp_time_spent = QGraphicsTextItem(f"Spent: {task.time_spent}")
+                time_info_height = max(temp_time_required.boundingRect().height(), temp_time_spent.boundingRect().height())
+                
+                box_height = max(min_box_height, 
+                               text_padding +  # Top padding
+                               time_info_height +  # Time info height
+                               vertical_spacing +  # Space after time info
+                               text_height +  # Task name height
+                               vertical_spacing +  # Space after task name
+                               progress_bar_height +  # Progress bar height
+                               progress_bar_margin)  # Bottom margin
 
                 # Create task box with calculated height
                 rect = self.scene.addRect(
@@ -163,7 +179,6 @@ class MainWindow(QMainWindow):
                 except ValueError:
                     time_spent.setDefaultTextColor(Qt.black)  # Fallback to black if conversion fails
                 
-                # Calculate position for right-aligned text
                 time_spent_width = time_spent.boundingRect().width()
                 time_spent_x = x_pos + box_width - time_spent_width - text_padding
                 time_spent.setPos(time_spent_x, task_y + text_padding)
@@ -171,9 +186,49 @@ class MainWindow(QMainWindow):
 
                 # Position task name text
                 text_x = x_pos + text_padding
-                text_y = task_y + 2 * text_padding + time_required.boundingRect().height()
+                text_y = task_y + text_padding + time_info_height + vertical_spacing
                 text.setPos(text_x, text_y)
                 self.scene.addItem(text)
+
+                # Add progress bar
+                try:
+                    progress = int(task.progress)
+                    progress_width = (box_width - 2 * text_padding) * (progress / 100)
+                    
+                    # Draw progress bar background
+                    progress_bg = self.scene.addRect(
+                        x_pos + text_padding,
+                        task_y + box_height - progress_bar_height - progress_bar_margin,
+                        box_width - 2 * text_padding,
+                        progress_bar_height,
+                        QPen(Qt.lightGray),
+                        QBrush(Qt.lightGray)
+                    )
+                    
+                    # Draw progress bar
+                    progress_bar = self.scene.addRect(
+                        x_pos + text_padding,
+                        task_y + box_height - progress_bar_height - progress_bar_margin,
+                        progress_width,
+                        progress_bar_height,
+                        QPen(Qt.blue),
+                        QBrush(Qt.blue)
+                    )
+                    
+                    # Add progress text
+                    progress_text = QGraphicsTextItem(f"{progress}%")
+                    progress_text.setDefaultTextColor(Qt.white)
+                    progress_text.setFont(QFont("Arial", 8, QFont.Bold))
+                    
+                    # Center progress text on the bar
+                    text_width = progress_text.boundingRect().width()
+                    text_height = progress_text.boundingRect().height()
+                    text_x = x_pos + text_padding + (box_width - 2 * text_padding - text_width) / 2
+                    text_y = task_y + box_height - progress_bar_height - progress_bar_margin + (progress_bar_height - text_height) / 2
+                    progress_text.setPos(text_x, text_y)
+                    self.scene.addItem(progress_text)
+                except ValueError:
+                    pass  # Skip progress bar if progress value is invalid
 
                 task_y += box_height + spacing
 

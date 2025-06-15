@@ -10,12 +10,13 @@ from typing import List
 # Task class
 class Task:
     def __init__(self, task_id: str, project: str, task: str, time_required: str,
-                 time_spent: str, other_departments: List[str], depends_on_task):
+                 time_spent: str, progress: str, other_departments: List[str], depends_on_task):
         self.task_id = task_id
         self.project = project
         self.task = task
         self.time_required = time_required
         self.time_spent = time_spent
+        self.progress = progress
         self.other_departments = other_departments
         self.depends_on_task = depends_on_task
 
@@ -50,7 +51,7 @@ class TaskList:
             
             # Verify required columns exist
             required_columns = ['TaskId', 'Project', 'Task', 'TimeRequired', 
-                              'TimeSpent', 'OtherDepartments', 'DependsOnTask']
+                              'TimeSpent', 'Progress', 'OtherDepartments', 'DependsOnTask']
             
             missing_columns = [col for col in required_columns if col not in reader.fieldnames]
             if missing_columns:
@@ -76,6 +77,7 @@ class TaskList:
                     task=row['Task'],
                     time_required=row['TimeRequired'],
                     time_spent=row['TimeSpent'],
+                    progress=row['Progress'],
                     other_departments=other_departments,
                     depends_on_task=depends_on_task                )
                 self.tasks.append(task) 
@@ -98,6 +100,7 @@ class TaskList:
             'Task': 20,
             'TimeRequired': 12,
             'TimeSpent': 10,
+            'Progress': 8,
             'OtherDepartments': 15,
             'DependsOnTask': 12
         }
@@ -109,6 +112,7 @@ class TaskList:
             f"{'Task':<{col_widths['Task']}} | "
             f"{'TimeRequired':<{col_widths['TimeRequired']}} | "
             f"{'TimeSpent':<{col_widths['TimeSpent']}} | "
+            f"{'Progress':<{col_widths['Progress']}} | "
             f"{'OtherDepts':<{col_widths['OtherDepartments']}} | "
             f"{'DependsOn':<{col_widths['DependsOnTask']}}"
         )
@@ -128,6 +132,7 @@ class TaskList:
                 f"{task.task:<{col_widths['Task']}} | "
                 f"{task.time_required:<{col_widths['TimeRequired']}} | "
                 f"{task.time_spent:<{col_widths['TimeSpent']}} | "
+                f"{task.progress:<{col_widths['Progress']}} | "
                 f"{other_depts:<{col_widths['OtherDepartments']}} | "
                 f"{depends_on:<{col_widths['DependsOnTask']}}"
             ) 
