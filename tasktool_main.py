@@ -2,9 +2,13 @@
 """
 @author: Jan-Eric-P
 """
+
 from configuration import Configuration
 from task_list import TaskList
 
+"""
+Main function
+"""
 def main():
     # load configuration
     config = Configuration()
@@ -16,7 +20,8 @@ def main():
     task_list.read(config.task_file_path)
     task_list.print()
 
-
-# entry point
+"""
+Entry point
+"""
 if __name__ == "__main__":
     main()

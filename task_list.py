@@ -80,6 +80,9 @@ class TaskList:
                     depends_on_task=depends_on_task                )
                 self.tasks.append(task) 
 
+    """	
+    Print all tasks in a formatted table on the command line.
+    """
     def print(self) -> None:
         """
         Print all tasks in a formatted table on the command line.
