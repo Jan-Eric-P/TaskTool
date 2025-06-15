@@ -32,3 +32,4 @@
 *.app
 /.spyproject
 *.code-workspace
+/__pycache__
