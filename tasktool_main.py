@@ -27,7 +27,7 @@ def main():
     task_list.print()
 
     # create main window
-    main_window = MainWindow()
+    main_window = MainWindow(task_list)
     main_window.show()
 
     # Start event loop
