@@ -41,6 +41,33 @@ class MainWindow(QMainWindow):
         # Display tasks
         self.display_tasks()
 
+    def calculate_task_positions(self, tasks):
+        """
+        Calculate horizontal positions for tasks based on their dependencies.
+        Returns a dictionary mapping task IDs to their x-positions.
+        """
+        # Create task lookup dictionary
+        task_dict = {task.task_id: task for task in tasks}
+        
+        # Initialize positions
+        positions = {}
+        max_positions = {}  # Track the rightmost position for each task
+        
+        # First pass: assign initial positions
+        for task in tasks:
+            if not task.depends_on_task:  # No dependencies
+                positions[task.task_id] = 0
+            else:
+                # Find the rightmost position of all dependencies
+                max_dep_pos = -1
+                for dep in task.depends_on_task:
+                    if dep in task_dict:  # Only consider existing dependencies
+                        if dep in positions:
+                            max_dep_pos = max(max_dep_pos, positions[dep])
+                positions[task.task_id] = max_dep_pos + 1
+        
+        return positions
+
     def display_tasks(self):
         """
         Display tasks as rectangles with centered text, grouped by project in swim lanes.
@@ -54,6 +81,7 @@ class MainWindow(QMainWindow):
         spacing = 50
         lane_spacing = 100  # Vertical spacing between lanes
         margin = 50  # Margin from the edges
+        horizontal_spacing = 0  # Space between task boxes horizontally
 
         # Group tasks by project
         project_tasks = defaultdict(list)
@@ -83,12 +111,20 @@ class MainWindow(QMainWindow):
             project_text.setPos(margin, current_y)
             self.scene.addItem(project_text)
 
+            # Calculate horizontal positions for tasks
+            positions = self.calculate_task_positions(tasks)
+
             # Draw tasks in this lane
             task_y = current_y + 40  # Start below project name
+            max_x = margin  # Track the rightmost position in this lane
             for task in tasks:
+                # Calculate horizontal position
+                x_pos = margin + positions[task.task_id] * (box_width + horizontal_spacing)
+                max_x = max(max_x, x_pos + box_width)
+
                 # Create task box
                 rect = self.scene.addRect(
-                    margin, task_y, box_width, box_height,
+                    x_pos, task_y, box_width, box_height,
                     QPen(Qt.black),
                     QBrush(Qt.white)
                 )
@@ -100,7 +136,7 @@ class MainWindow(QMainWindow):
                 # Center text in rectangle
                 text_width = text.boundingRect().width()
                 text_height = text.boundingRect().height()
-                text_x = margin + (box_width - text_width) / 2
+                text_x = x_pos + (box_width - text_width) / 2
                 text_y_pos = task_y + (box_height - text_height) / 2
                 text.setPos(text_x, text_y_pos)
                 
@@ -111,7 +147,7 @@ class MainWindow(QMainWindow):
             if project != list(project_tasks.keys())[-1]:  # Don't draw line after last project
                 line_y = current_y + lane_heights[project] + lane_spacing/2
                 line = QLineF(margin, line_y, 
-                            margin + box_width + 100, line_y)  # Line extends beyond task width
+                            max_x + 50, line_y)  # Line extends to the rightmost task plus padding
                 self.scene.addLine(line, QPen(Qt.black, 2, Qt.DashLine))
 
             current_y += lane_heights[project] + lane_spacing
