@@ -129,6 +129,28 @@ class MainWindow(QMainWindow):
                     QBrush(Qt.white)
                 )
 
+                # Add time information in upper left corner
+                time_required = QGraphicsTextItem(f"Required: {task.time_required}")
+                time_required.setDefaultTextColor(Qt.black)
+                time_required.setPos(x_pos + 5, task_y + 5)
+                self.scene.addItem(time_required)
+
+                # Add time spent in upper right corner
+                time_spent = QGraphicsTextItem(f"Spent: {task.time_spent}")
+                try:
+                    if int(task.time_spent) > int(task.time_required):
+                        time_spent.setDefaultTextColor(Qt.red)
+                    else:
+                        time_spent.setDefaultTextColor(QColor(0, 100, 0))  # Dark green
+                except ValueError:
+                    time_spent.setDefaultTextColor(Qt.black)  # Fallback to black if conversion fails
+                
+                # Calculate position for right-aligned text
+                time_spent_width = time_spent.boundingRect().width()
+                time_spent_x = x_pos + box_width - time_spent_width - 5  # 5 pixels padding from right edge
+                time_spent.setPos(time_spent_x, task_y + 5)
+                self.scene.addItem(time_spent)
+
                 # Add task name text
                 text = QGraphicsTextItem(task.task)
                 text.setDefaultTextColor(Qt.black)
