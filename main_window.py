@@ -124,7 +124,10 @@ class MainWindow(QMainWindow):
                 max_x = max(max_x, x_pos + box_width)
 
                 # Create task name text with wrapping
-                text = QGraphicsTextItem(task.task)
+                task_text = task.task
+                if task.other_departments:
+                    task_text += f" ({', '.join(task.other_departments)})"
+                text = QGraphicsTextItem(task_text)
                 text.setDefaultTextColor(Qt.black)
                 text.setTextWidth(box_width - 2 * text_padding)  # Enable text wrapping
                 
