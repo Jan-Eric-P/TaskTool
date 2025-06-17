@@ -3,13 +3,167 @@
 @author: Jan-Eric-P
 """
 
-from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem, QToolBar, QAction, QStyle
+from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem, QToolBar, QAction, QStyle, QGraphicsItem
 from PyQt5.QtCore import Qt, QRectF, QLineF, QSize
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QTextOption, QIcon, QPixmap
 from task_list import TaskList
 from collections import defaultdict
 import resources_rc
 import os
+
+class TaskGraphicsItem(QGraphicsItem):
+    """
+    Custom graphics item that represents a single task with all its visual elements.
+    Encapsulates the drawing of the task box, time information, task text, and progress bar.
+    """
+    
+    def __init__(self, task, box_width=200, min_box_height=100, text_padding=10, 
+                 progress_bar_height=20, progress_bar_margin=10, vertical_spacing=15):
+        super().__init__()
+        self.task = task
+        self.box_width = box_width
+        self.min_box_height = min_box_height
+        self.text_padding = text_padding
+        self.progress_bar_height = progress_bar_height
+        self.progress_bar_margin = progress_bar_margin
+        self.vertical_spacing = vertical_spacing
+        
+        # Calculate the required height for this task
+        self.box_height = self._calculate_box_height()
+    
+    def _calculate_box_height(self):
+        """Calculate the required height for the task box based on content."""
+        # Calculate time info height
+        time_required_text = f"Required: {self.task.time_required}"
+        time_spent_text = f"Spent: {self.task.time_spent}"
+        
+        # Create temporary text items to measure height
+        temp_font = QFont()
+        temp_font.setPointSize(9)  # Default font size
+        
+        # Estimate time info height (simplified calculation)
+        time_info_height = 20  # Approximate height for time text
+        
+        # Calculate task text height
+        task_text = self.task.task
+        if self.task.other_departments:
+            task_text += f" ({', '.join(self.task.other_departments)})"
+        
+        # Estimate text height based on text length and wrapping
+        text_width = self.box_width - 2 * self.text_padding
+        estimated_chars_per_line = int(text_width / 8)  # Rough estimate
+        estimated_lines = max(1, len(task_text) // estimated_chars_per_line + 1)
+        text_height = estimated_lines * 16  # Approximate line height
+        
+        # Calculate total height
+        total_height = (self.text_padding +  # Top padding
+                       time_info_height +  # Time info height
+                       self.vertical_spacing +  # Space after time info
+                       text_height +  # Task name height
+                       self.vertical_spacing +  # Space after task name
+                       self.progress_bar_height +  # Progress bar height
+                       self.progress_bar_margin)  # Bottom margin
+        
+        return max(self.min_box_height, total_height)
+    
+    def boundingRect(self):
+        """Return the bounding rectangle of the task item."""
+        return QRectF(0, 0, self.box_width, self.box_height)
+    
+    def paint(self, painter, option, widget):
+        """Paint the task item with all its visual elements."""
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Draw the main task box
+        painter.setPen(QPen(Qt.black, 1))
+        painter.setBrush(QBrush(Qt.white))
+        painter.drawRect(0, 0, self.box_width, self.box_height)
+        
+        # Draw time information
+        self._draw_time_info(painter)
+        
+        # Draw task text
+        self._draw_task_text(painter)
+        
+        # Draw progress bar
+        self._draw_progress_bar(painter)
+    
+    def _draw_time_info(self, painter):
+        """Draw the time required and time spent information."""
+        # Time required (top left)
+        time_required_text = f"Required: {self.task.time_required}"
+        painter.setPen(Qt.black)
+        painter.setFont(QFont("Arial", 9))
+        painter.drawText(self.text_padding, self.text_padding + 15, time_required_text)
+        
+        # Time spent (top right)
+        time_spent_text = f"Spent: {self.task.time_spent}"
+        try:
+            if int(self.task.time_spent) > int(self.task.time_required):
+                painter.setPen(Qt.red)
+            else:
+                painter.setPen(QColor(0, 100, 0))  # Dark green
+        except ValueError:
+            painter.setPen(Qt.black)
+        
+        # Calculate position for right-aligned text
+        text_rect = painter.fontMetrics().boundingRect(time_spent_text)
+        text_x = int(self.box_width - self.text_padding - text_rect.width())
+        painter.drawText(text_x, self.text_padding + 15, time_spent_text)
+    
+    def _draw_task_text(self, painter):
+        """Draw the task name with department abbreviations."""
+        task_text = self.task.task
+        if self.task.other_departments:
+            task_text += f" ({', '.join(self.task.other_departments)})"
+        
+        painter.setPen(Qt.black)
+        painter.setFont(QFont("Arial", 10))
+        
+        # Calculate text position (centered horizontally, below time info)
+        text_rect = QRectF(self.text_padding, 
+                          self.text_padding + 20 + self.vertical_spacing,
+                          self.box_width - 2 * self.text_padding,
+                          self.box_height - self.text_padding - 20 - 2 * self.vertical_spacing - self.progress_bar_height - self.progress_bar_margin)
+        
+        # Draw text with word wrapping and center alignment
+        painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, task_text)
+    
+    def _draw_progress_bar(self, painter):
+        """Draw the progress bar at the bottom of the task box."""
+        try:
+            progress = int(self.task.progress)
+            progress_width = int((self.box_width - 2 * self.text_padding) * (progress / 100))
+            
+            # Progress bar position
+            bar_y = int(self.box_height - self.progress_bar_height - self.progress_bar_margin)
+            bar_x = self.text_padding
+            
+            # Draw progress bar background
+            painter.setPen(QPen(Qt.lightGray))
+            painter.setBrush(QBrush(Qt.lightGray))
+            painter.drawRect(bar_x, bar_y, 
+                           int(self.box_width - 2 * self.text_padding), 
+                           self.progress_bar_height)
+            
+            # Draw progress bar
+            painter.setPen(QPen(Qt.blue))
+            painter.setBrush(QBrush(Qt.blue))
+            painter.drawRect(bar_x, bar_y, progress_width, self.progress_bar_height)
+            
+            # Draw progress text
+            progress_text = f"{progress}%"
+            painter.setPen(Qt.white)
+            painter.setFont(QFont("Arial", 8, QFont.Bold))
+            
+            # Center progress text on the bar
+            text_rect = painter.fontMetrics().boundingRect(progress_text)
+            text_x = int(bar_x + (self.box_width - 2 * self.text_padding - text_rect.width()) / 2)
+            text_y = int(bar_y + (self.progress_bar_height - text_rect.height()) / 2 + text_rect.height())
+            painter.drawText(text_x, text_y, progress_text)
+            
+        except ValueError:
+            pass  # Skip progress bar if progress value is invalid
 
 class MainWindow(QMainWindow):
     """
@@ -124,152 +278,6 @@ class MainWindow(QMainWindow):
         return positions
 
     """
-    Create and add time information items to the scene.
-    Displays 'Required' time in black and 'Spent' time in green (if within limit) or red (if exceeded).
-
-    Args:
-        task: Task object containing time information
-        x_pos: X-coordinate for positioning
-        y_pos: Y-coordinate for positioning
-        box_width: Width of the task box
-        text_padding: Padding for text within the box
-
-    Returns:
-        Height of the time information section
-    """
-    def create_time_info(self, task, x_pos, y_pos, box_width, text_padding):
-        # Create time required text
-        time_required = QGraphicsTextItem(f"Required: {task.time_required}")
-        time_required.setDefaultTextColor(Qt.black)
-        time_required.setPos(x_pos + text_padding, y_pos + text_padding)
-        self.scene.addItem(time_required)
-
-        # Create time spent text
-        time_spent = QGraphicsTextItem(f"Spent: {task.time_spent}")
-        try:
-            if int(task.time_spent) > int(task.time_required):
-                time_spent.setDefaultTextColor(Qt.red)
-            else:
-                time_spent.setDefaultTextColor(QColor(0, 100, 0))  # Dark green
-        except ValueError:
-            time_spent.setDefaultTextColor(Qt.black)  # Fallback to black if conversion fails
-        
-        time_spent_width = time_spent.boundingRect().width()
-        time_spent_x = x_pos + box_width - time_spent_width - text_padding
-        time_spent.setPos(time_spent_x, y_pos + text_padding)
-        self.scene.addItem(time_spent)
-
-        return max(time_required.boundingRect().height(), time_spent.boundingRect().height())
-
-    """
-    Create and add task text item to the scene.
-    Displays the task name with department abbreviations in parentheses if available.
-
-    Args:
-        task: Task object containing task information
-        x_pos: X-coordinate for positioning
-        y_pos: Y-coordinate for positioning
-        box_width: Width of the task box
-        text_padding: Padding for text within the box
-
-    Returns:
-        Height of the task text
-    """
-    def create_task_text(self, task, x_pos, y_pos, box_width, text_padding):
-        task_text = task.task
-        if task.other_departments:
-            task_text += f" ({', '.join(task.other_departments)})"
-        
-        text = QGraphicsTextItem(task_text)
-        text.setDefaultTextColor(Qt.black)
-        text.setTextWidth(box_width - 2 * text_padding)  # Enable text wrapping
-        
-        # Set text alignment to center
-        text_option = QTextOption()
-        text_option.setAlignment(Qt.AlignCenter)
-        text.document().setDefaultTextOption(text_option)
-        
-        text.setPos(x_pos + text_padding, y_pos)
-        self.scene.addItem(text)
-        
-        return text.boundingRect().height()
-
-    """
-    Create and add progress bar to the scene.
-    Displays a blue progress bar with percentage text, or skips if progress value is invalid.
-
-    Args:
-        task: Task object containing progress information
-        x_pos: X-coordinate for positioning
-        y_pos: Y-coordinate for positioning
-        box_width: Width of the task box
-        text_padding: Padding for text within the box
-        progress_bar_height: Height of the progress bar
-        progress_bar_margin: Margin between progress bar and bottom edge
-    """
-    def create_progress_bar(self, task, x_pos, y_pos, box_width, text_padding, progress_bar_height, progress_bar_margin):
-        try:
-            progress = int(task.progress)
-            progress_width = (box_width - 2 * text_padding) * (progress / 100)
-            
-            # Draw progress bar background
-            progress_bg = self.scene.addRect(
-                x_pos + text_padding,
-                y_pos - progress_bar_height - progress_bar_margin,
-                box_width - 2 * text_padding,
-                progress_bar_height,
-                QPen(Qt.lightGray),
-                QBrush(Qt.lightGray)
-            )
-            
-            # Draw progress bar
-            progress_bar = self.scene.addRect(
-                x_pos + text_padding,
-                y_pos - progress_bar_height - progress_bar_margin,
-                progress_width,
-                progress_bar_height,
-                QPen(Qt.blue),
-                QBrush(Qt.blue)
-            )
-            
-            # Add progress text
-            progress_text = QGraphicsTextItem(f"{progress}%")
-            progress_text.setDefaultTextColor(Qt.white)
-            progress_text.setFont(QFont("Arial", 8, QFont.Bold))
-            
-            # Center progress text on the bar
-            text_width = progress_text.boundingRect().width()
-            text_height = progress_text.boundingRect().height()
-            text_x = x_pos + text_padding + (box_width - 2 * text_padding - text_width) / 2
-            text_y = y_pos - progress_bar_height - progress_bar_margin + (progress_bar_height - text_height) / 2
-            progress_text.setPos(text_x, text_y)
-            self.scene.addItem(progress_text)
-        except ValueError:
-            pass  # Skip progress bar if progress value is invalid
-
-    """
-    Calculate the height needed for each project lane.
-    Includes space for project name and all associated tasks.
-
-    Args:
-        project_tasks: Dictionary mapping project names to their tasks
-        min_box_height: Minimum height for task boxes
-        spacing: Vertical spacing between tasks
-
-    Returns:
-        Dictionary mapping project names to their total heights
-    """
-    def calculate_lane_heights(self, project_tasks, min_box_height, spacing):
-        lane_heights = {}
-        for project, tasks in project_tasks.items():
-            # Height for project name
-            height = 40
-            # Height for tasks (will be adjusted based on text wrapping)
-            height += len(tasks) * (min_box_height + spacing)
-            lane_heights[project] = height
-        return lane_heights
-
-    """
     Display tasks as rectangles with centered text, grouped by project in swim lanes.
     Each task box shows:
     - Time information (Required/Spent) in the upper corners
@@ -288,18 +296,11 @@ class MainWindow(QMainWindow):
         lane_spacing = 100  # Vertical spacing between lanes
         margin = 50  # Margin from the edges
         horizontal_spacing = 0  # Space between task boxes horizontally
-        text_padding = 10  # Padding for text within boxes
-        progress_bar_height = 20  # Height of the progress bar
-        progress_bar_margin = 10  # Margin between progress bar and bottom edge
-        vertical_spacing = 15  # Consistent vertical spacing between elements
 
         # Group tasks by project
         project_tasks = defaultdict(list)
         for task in self.task_list.tasks:
             project_tasks[task.project].append(task)
-
-        # Calculate lane heights
-        lane_heights = self.calculate_lane_heights(project_tasks, min_box_height, spacing)
 
         # Draw swim lanes for each project
         current_y = margin
@@ -319,60 +320,32 @@ class MainWindow(QMainWindow):
             # Draw tasks in this lane
             task_y = current_y + 40  # Start below project name
             max_x = margin  # Track the rightmost position in this lane
+            lane_height = 0  # Track the total height of this lane
             
             for task in tasks:
                 # Calculate horizontal position
                 x_pos = margin + positions[task.task_id] * (box_width + horizontal_spacing)
+                
+                # Create and add the task graphics item
+                task_item = TaskGraphicsItem(task, box_width, min_box_height)
+                task_item.setPos(x_pos, task_y)
+                self.scene.addItem(task_item)
+                
+                # Update tracking variables
                 max_x = max(max_x, x_pos + box_width)
-
-                # Create temporary time items to calculate their height
-                temp_time_required = QGraphicsTextItem(f"Required: {task.time_required}")
-                temp_time_spent = QGraphicsTextItem(f"Spent: {task.time_spent}")
-                time_info_height = max(temp_time_required.boundingRect().height(), temp_time_spent.boundingRect().height())
-
-                # Create temporary task text to calculate its height
-                temp_task_text = QGraphicsTextItem(task.task)
-                temp_task_text.setTextWidth(box_width - 2 * text_padding)
-                text_height = temp_task_text.boundingRect().height()
-
-                # Calculate box height
-                box_height = max(min_box_height, 
-                               text_padding +  # Top padding
-                               time_info_height +  # Time info height
-                               vertical_spacing +  # Space after time info
-                               text_height +  # Task name height
-                               vertical_spacing +  # Space after task name
-                               progress_bar_height +  # Progress bar height
-                               progress_bar_margin)  # Bottom margin
-
-                # Create task box
-                rect = self.scene.addRect(
-                    x_pos, task_y, box_width, box_height,
-                    QPen(Qt.black),
-                    QBrush(Qt.white)
-                )
-
-                # Add time information
-                self.create_time_info(task, x_pos, task_y, box_width, text_padding)
-
-                # Create task name text with wrapping
-                self.create_task_text(task, x_pos, task_y + text_padding + time_info_height + vertical_spacing, 
-                                    box_width, text_padding)
-
-                # Add progress bar
-                self.create_progress_bar(task, x_pos, task_y + box_height, box_width, text_padding, 
-                                       progress_bar_height, progress_bar_margin)
-
-                task_y += box_height + spacing
+                lane_height = max(lane_height, task_y + task_item.box_height - (current_y + 40))  # Height from project name to bottom of this task
+                
+                task_y += task_item.box_height + spacing
 
             # Draw horizontal separator line
             if project != list(project_tasks.keys())[-1]:  # Don't draw line after last project
-                line_y = current_y + lane_heights[project] + lane_spacing/2
+                line_y = current_y + 40 + lane_height + spacing/2
                 line = QLineF(margin, line_y, 
                             max_x + 50, line_y)  # Line extends to the rightmost task plus padding
                 self.scene.addLine(line, QPen(Qt.black, 2, Qt.DashLine))
 
-            current_y += lane_heights[project] + lane_spacing
+            # Move to next lane: project name (40) + lane height + spacing
+            current_y += 40 + lane_height + lane_spacing
 
         # Adjust scene rect to show all items with padding
         self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-50, -50, 50, 50)) 
