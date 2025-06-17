@@ -4,5 +4,6 @@
         <file>icons/zoom_in_24dp.png</file>
         <file>icons/zoom_out_24dp.png</file>
         <file>icons/view_real_size_24dp.png</file>
+		<file>icons/compress_24dp.png</file>
     </qresource>
 </RCC> 
