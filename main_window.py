@@ -52,29 +52,24 @@ class TaskGraphicsItem(QGraphicsItem):
     def _calculate_box_height(self):
         """Calculate the required height for the task box based on content."""
         if self.compressed_mode:
-            # Compressed mode: smaller height, less padding, no progress bar
+            # Compressed mode: smaller height, less padding, no progress bar, no time info, same font size
             compressed_min_height = 60
             compressed_text_padding = 5
             compressed_vertical_spacing = 8
-            
-            # Estimate time info height (simplified calculation)
-            time_info_height = 12  # Reduced height for compressed mode
             
             # Calculate task text height
             task_text = self.task.task
             if self.task.other_departments:
                 task_text += f" ({', '.join(self.task.other_departments)})"
             
-            # Estimate text height based on text length and wrapping
+            # Estimate text height based on text length and wrapping (same font size as normal mode)
             text_width = self.box_width - 2 * compressed_text_padding
             estimated_chars_per_line = int(text_width / 8)  # Rough estimate
             estimated_lines = max(1, len(task_text) // estimated_chars_per_line + 1)
-            text_height = estimated_lines * 12  # Reduced line height for compressed mode
+            text_height = estimated_lines * 16  # Same line height as normal mode
             
-            # Calculate total height for compressed mode (no progress bar)
+            # Calculate total height for compressed mode (no progress bar, no time info)
             total_height = (compressed_text_padding +  # Top padding
-                           time_info_height +  # Time info height
-                           compressed_vertical_spacing +  # Space after time info
                            text_height +  # Task name height
                            compressed_text_padding)  # Bottom padding
             
@@ -130,11 +125,15 @@ class TaskGraphicsItem(QGraphicsItem):
     
     def _draw_time_info(self, painter):
         """Draw the time required and time spent information."""
+        # Don't draw time info in compressed mode
         if self.compressed_mode:
-            # Compressed mode: smaller fonts and padding
+            return
+            
+        if self.compressed_mode:
+            # Compressed mode: smaller padding, same font size
             text_padding = 5
-            font_size = 7
-            y_offset = 10
+            font_size = 9  # Same as normal mode
+            y_offset = 15  # Same as normal mode
         else:
             # Normal mode: original parameters
             text_padding = self.text_padding
@@ -165,11 +164,9 @@ class TaskGraphicsItem(QGraphicsItem):
     def _draw_task_text(self, painter):
         """Draw the task name with department abbreviations."""
         if self.compressed_mode:
-            # Compressed mode: smaller fonts and padding, no progress bar
+            # Compressed mode: smaller padding, same font size, no time info
             text_padding = 5
-            font_size = 8
-            vertical_spacing = 8
-            time_info_height = 12
+            font_size = 10  # Same as normal mode
         else:
             # Normal mode: original parameters
             text_padding = self.text_padding
@@ -188,13 +185,13 @@ class TaskGraphicsItem(QGraphicsItem):
         
         # Calculate text position (centered horizontally, below time info)
         if self.compressed_mode:
-            # Compressed mode: no progress bar, so text can extend to bottom
+            # Compressed mode: no time info, no progress bar, so text can extend to full height
             text_rect = QRectF(text_padding, 
-                              text_padding + time_info_height + vertical_spacing,
+                              text_padding,
                               self.box_width - 2 * text_padding,
-                              self.box_height - text_padding - time_info_height - vertical_spacing - text_padding)
+                              self.box_height - 2 * text_padding)
         else:
-            # Normal mode: leave space for progress bar
+            # Normal mode: leave space for time info and progress bar
             text_rect = QRectF(text_padding, 
                               text_padding + time_info_height + vertical_spacing,
                               self.box_width - 2 * text_padding,
@@ -214,7 +211,7 @@ class TaskGraphicsItem(QGraphicsItem):
             text_padding = 5
             progress_bar_height = 12
             progress_bar_margin = 5
-            font_size = 6
+            font_size = 8  # Same as normal mode
         else:
             # Normal mode: original parameters
             text_padding = self.text_padding
@@ -372,8 +369,8 @@ class MainWindow(QMainWindow):
         """Recalculate and update the vertical positions of all task items."""
         # Task box dimensions
         box_width = 200
-        spacing = 50
-        lane_spacing = 100
+        spacing = 12  # Reduced from 50 to 12 (25% of original)
+        lane_spacing = 50  # Doubled from 25 to 50 for better visual separation
         margin = 50
         horizontal_spacing = 0
 
@@ -400,7 +397,7 @@ class MainWindow(QMainWindow):
             positions = self.calculate_task_positions(tasks)
 
             # Reposition tasks in this lane
-            task_y = current_y + 40  # Start below project name
+            task_y = current_y + 60  # Increased from 40 to 60 to accommodate larger project name
             max_x = margin
             lane_height = 0
             
@@ -419,19 +416,19 @@ class MainWindow(QMainWindow):
                     
                     # Update tracking variables
                     max_x = max(max_x, x_pos + box_width)
-                    lane_height = max(lane_height, task_y + task_item.box_height - (current_y + 40))
+                    lane_height = max(lane_height, task_y + task_item.box_height - (current_y + 60))
                     
                     task_y += task_item.box_height + spacing
 
             # Update separator line position (if not the last project)
             if project != list(project_tasks.keys())[-1] and line_index < len(separator_lines):
                 line = separator_lines[line_index]
-                line_y = current_y + 40 + lane_height + spacing/2
+                line_y = current_y + 60 + lane_height + 25  # Updated to use 60 instead of 40
                 line.setLine(margin, line_y, max_x + 50, line_y)
                 line_index += 1
 
             # Move to next lane
-            current_y += 40 + lane_height + lane_spacing
+            current_y += 60 + lane_height + lane_spacing
 
     """
     Calculate horizontal positions for tasks based on their dependencies.
@@ -482,8 +479,8 @@ class MainWindow(QMainWindow):
         # Task box dimensions
         box_width = 200
         min_box_height = 100  # Minimum height for task boxes
-        spacing = 50
-        lane_spacing = 100  # Vertical spacing between lanes
+        spacing = 12  # Reduced from 50 to 12 (25% of original)
+        lane_spacing = 50  # Doubled from 25 to 50 for better visual separation
         margin = 50  # Margin from the edges
         horizontal_spacing = 0  # Space between task boxes horizontally
 
@@ -499,6 +496,7 @@ class MainWindow(QMainWindow):
             project_text = QGraphicsTextItem(project)
             font = QFont()
             font.setBold(True)
+            font.setPointSize(20)  # Doubled from default ~10 to 20
             project_text.setFont(font)
             project_text.setDefaultTextColor(Qt.black)
             project_text.setPos(margin, current_y)
@@ -508,7 +506,7 @@ class MainWindow(QMainWindow):
             positions = self.calculate_task_positions(tasks)
 
             # Draw tasks in this lane
-            task_y = current_y + 40  # Start below project name
+            task_y = current_y + 60  # Increased from 40 to 60 to accommodate larger project name
             max_x = margin  # Track the rightmost position in this lane
             lane_height = 0  # Track the total height of this lane
             
@@ -523,19 +521,19 @@ class MainWindow(QMainWindow):
                 
                 # Update tracking variables
                 max_x = max(max_x, x_pos + box_width)
-                lane_height = max(lane_height, task_y + task_item.box_height - (current_y + 40))  # Height from project name to bottom of this task
+                lane_height = max(lane_height, task_y + task_item.box_height - (current_y + 60))  # Height from project name to bottom of this task
                 
                 task_y += task_item.box_height + spacing
 
             # Draw horizontal separator line
             if project != list(project_tasks.keys())[-1]:  # Don't draw line after last project
-                line_y = current_y + 40 + lane_height + spacing/2
+                line_y = current_y + 60 + lane_height + 25  # Updated to use 60 instead of 40
                 line = QLineF(margin, line_y, 
                             max_x + 50, line_y)  # Line extends to the rightmost task plus padding
                 self.scene.addLine(line, QPen(Qt.black, 2, Qt.DashLine))
 
-            # Move to next lane: project name (40) + lane height + spacing
-            current_y += 40 + lane_height + lane_spacing
+            # Move to next lane: project name (60) + lane height + spacing
+            current_y += 60 + lane_height + lane_spacing
 
         # Adjust scene rect to show all items with padding
         self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-50, -50, 50, 50)) 
