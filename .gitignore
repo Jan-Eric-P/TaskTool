@@ -33,3 +33,5 @@
 /.spyproject
 *.code-workspace
 /__pycache__
+/config.json
+/test.csv

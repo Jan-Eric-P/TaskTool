@@ -1,0 +1,11 @@
+TaskId;Project;Task;TimeRequired;TimeSpent;Progress;OtherDepartments;DependsOnTask
+T1;Projekt A;Anforderungsanalyse;40;30;75;STR;
+T2;Projekt A;Systemdesign;60;45;50;STR;T1
+T3;Projekt A;Implementierung;120;100;25;STR SOF;T2
+T4;Projekt B;Konzeption;30;25;100;STR SOF;T4
+T5;Projekt B;Entwicklung;90;80;80;SOF;T4 T3
+T6;Projekt A;Testing;45;40;60;STR;T3
+T7;Projekt B;Dokumentation Dokumentation Dokumentation;20;25;93;STR SOF;T4
+T8;Projekt A;Deployment;15;10;80;STR;T6
+T9;Projekt B;Schulung;10;8;50;STR SOF;T7
+T10;Projekt A;Wartung;50;0;0;STR;T8
