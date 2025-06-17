@@ -3,7 +3,7 @@
 @author: Jan-Eric-P
 """
 
-from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem, QToolBar, QAction, QStyle, QGraphicsItem, QGraphicsLineItem
+from PyQt5.QtWidgets import QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsTextItem, QToolBar, QAction, QStyle, QGraphicsItem, QGraphicsLineItem, QMessageBox, QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QLabel
 from PyQt5.QtCore import Qt, QRectF, QLineF, QSize
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QTextOption, QIcon, QPixmap
 from task_list import TaskList
@@ -323,6 +323,21 @@ class MainWindow(QMainWindow):
         self.toggle_compressed_action.triggered.connect(self.toggle_compressed_mode)
         toolbar.addAction(self.toggle_compressed_action)
 
+        # Add separator
+        toolbar.addSeparator()
+
+        # Add help action
+        help_action = QAction(QIcon(":/icons/help_24dp.png"), "Info", self)
+        help_action.setStatusTip("Show help")
+        help_action.triggered.connect(self.show_help)
+        toolbar.addAction(help_action)
+
+        # Add info action
+        info_action = QAction(QIcon(":/icons/info_24dp.png"), "Info", self)
+        info_action.setStatusTip("Show information")
+        info_action.triggered.connect(self.show_info)
+        toolbar.addAction(info_action)
+
     """
     Zoom in by scaling the view.
     """
@@ -530,10 +545,201 @@ class MainWindow(QMainWindow):
                 line_y = current_y + 60 + lane_height + 25  # Updated to use 60 instead of 40
                 line = QLineF(margin, line_y, 
                             max_x + 50, line_y)  # Line extends to the rightmost task plus padding
-                self.scene.addLine(line, QPen(Qt.black, 2, Qt.DashLine))
+                self.scene.addLine(line, QPen(Qt.black, 2))
 
             # Move to next lane: project name (60) + lane height + spacing
             current_y += 60 + lane_height + lane_spacing
 
         # Adjust scene rect to show all items with padding
-        self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-50, -50, 50, 50)) 
+        self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+
+    def show_help(self):
+        """Show Help dialog for the application."""
+        help_text = """
+        <h2>Task Tool</h2>
+
+        <p>Task Tool is a visual project management application that displays tasks organized in swim lanes by project. 
+        Each task shows time information, progress, and dependencies.</p>
+        
+        <h3>Features:</h3>
+        <ul>
+        <li><b>Swim Lane View:</b> Tasks are grouped by project in horizontal lanes</li>
+        <li><b>Dependency Visualization:</b> Tasks are positioned based on their dependencies</li>
+        <li><b>Time Tracking:</b> Shows required and spent time for each task</li>
+        <li><b>Progress Bars:</b> Visual progress indication for each task</li>
+        <li><b>Compressed Mode:</b> Compact view for overview of many tasks</li>
+        <li><b>Zoom Controls:</b> Zoom in, out, and reset view</li>
+        </ul>
+        
+        <h3>Toolbar Buttons:</h3>
+        <ul>
+        <li><b>Zoom In:</b> Magnify the view to see details better</li>
+        <li><b>Zoom Out:</b> Reduce the view to see more content</li>
+        <li><b>Reset Zoom:</b> Return to the original zoom level</li>
+        <li><b>Compressed Mode:</b> Toggle between normal and compact task view</li>
+        <li><b>Help:</b> Show this help dialog with usage instructions</li>
+        <li><b>Info:</b> Show application information and license details</li>
+        </ul>
+        
+        <h3>Usage:</h3>
+        <ul>
+        <li><b>Zoom In/Out:</b> Use the zoom buttons or mouse wheel</li>
+        <li><b>Compressed Mode:</b> Toggle for compact task view</li>
+        <li><b>Navigation:</b> Scroll to view different projects and tasks</li>
+        <li><b>Help:</b> Click the help button (?) for detailed instructions</li>
+        <li><b>Info:</b> Click the info button (i) for application details and license</li>
+        </ul>
+        
+        <h3>File Format:</h3>
+        <p>The application reads CSV files with semicolon-separated values containing the following columns:</p>
+        <ul>
+        <li>TaskId - Unique identifier for each task</li>
+        <li>Project - Project name for grouping</li>
+        <li>Task - Task description</li>
+        <li>TimeRequired - Estimated time required</li>
+        <li>TimeSpent - Actual time spent</li>
+        <li>Progress - Progress percentage (0-100)</li>
+        <li>OtherDepartments - Space-separated department abbreviations</li>
+        <li>DependsOnTask - Space-separated task IDs this task depends on</li>
+        </ul>
+        """
+        
+        # Create custom dialog with scrollable text
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Task Tool - Help")
+        dialog.setModal(True)
+        dialog.resize(600, 500)  # Set reasonable size
+        
+        # Create layout
+        layout = QVBoxLayout()
+        
+        # Create text edit widget for scrollable content
+        text_edit = QTextEdit()
+        text_edit.setHtml(help_text)
+        text_edit.setReadOnly(True)
+        layout.addWidget(text_edit)
+        
+        # Create button layout
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        # Add close button
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_button)
+        
+        layout.addLayout(button_layout)
+        dialog.setLayout(layout)
+        
+        # Show dialog
+        dialog.exec_()
+
+    def show_info(self):
+        """Show information dialog about the application."""
+        info_text = """
+        <h2>Task Tool</h2>
+        <p><b>Version:</b> 1.0</p>
+        <p><b>Author:</b> Jan-Eric-P</p>
+        <p><b>License:</b> MIT License</p>
+        <p>Click the buttons below to see additional information.</p>
+        """
+        
+        # Create custom dialog with proper button layout
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Task Tool - Information")
+        dialog.setModal(True)
+        dialog.resize(500, 200)
+        
+        # Create layout
+        layout = QVBoxLayout()
+        
+        # Create label for text content
+        label = QLabel()
+        label.setText(info_text)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        
+        # Create button layout
+        button_layout = QHBoxLayout()
+        
+        # Add left buttons
+        license_button = QPushButton("View License")
+        license_button.clicked.connect(lambda: self.handle_license_click(dialog))
+        button_layout.addWidget(license_button)
+        
+        third_party_button = QPushButton("3rd Party Code")
+        third_party_button.clicked.connect(lambda: self.handle_third_party_click(dialog))
+        button_layout.addWidget(third_party_button)
+        
+        # Add spacing (minimum 100px)
+        button_layout.addStretch(100)
+        
+        # Add OK button on the right
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_button)
+        
+        layout.addLayout(button_layout)
+        dialog.setLayout(layout)
+        
+        # Show dialog
+        dialog.exec_()
+
+    def handle_license_click(self, dialog):
+        """Handle license button click."""
+        dialog.hide()  # Hide the info dialog temporarily
+        self.show_license()
+        dialog.show()  # Show the info dialog again
+
+    def handle_third_party_click(self, dialog):
+        """Handle third party button click."""
+        dialog.hide()  # Hide the info dialog temporarily
+        self.show_third_party_info()
+        dialog.show()  # Show the info dialog again
+
+    def show_third_party_info(self):
+        """Show third-party libraries information dialog."""
+        third_party_info = """
+        <h3>Third-Party Libraries:</h3>
+        <ul>
+        <li><b>PyQt5:</b> Cross-platform application framework for desktop applications</li>
+        <li><b>Python Standard Library:</b> Built-in modules (csv, pathlib, collections, etc.)</li>
+        <li><b>Google Material Icons:</b> Icon set for the user interface</li>
+        </ul>
+        
+        <h3>Library Licenses:</h3>
+        <ul>
+        <li><b>PyQt5:</b> GPL v3 or Commercial License</li>
+        <li><b>Python:</b> PSF License (compatible with MIT)</li>
+        <li><b>Google Material Icons:</b> Apache License 2.0</li>
+        </ul>
+        """
+        
+        QMessageBox.information(self, "Task Tool - Third-Party Libraries", third_party_info)
+
+    def show_license(self):
+        """Show license dialog with full MIT license text."""
+        license_text = """
+        <h2>MIT License</h2>
+        <p><b>Copyright (c) 2025 Jan-Eric-P</b></p>
+        
+        <p>Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:</p>
+        
+        <p>The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.</p>
+        
+        <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.</p>
+        """
+        
+        QMessageBox.information(self, "Task Tool - License", license_text) 
