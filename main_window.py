@@ -394,6 +394,9 @@ class MainWindow(QMainWindow):
         for task in self.task_list.tasks:
             project_tasks[task.project].append(task)
 
+        # Calculate global positions for all tasks
+        global_positions = self.calculate_task_positions(self.task_list.tasks)
+
         # Collect all separator lines first
         separator_lines = [item for item in self.scene.items() if isinstance(item, QGraphicsLineItem)]
         line_index = 0
@@ -408,9 +411,6 @@ class MainWindow(QMainWindow):
                 project_text = project_items[0]
                 project_text.setPos(margin, current_y)
 
-            # Calculate horizontal positions for tasks
-            positions = self.calculate_task_positions(tasks)
-
             # Reposition tasks in this lane
             task_y = current_y + 60  # Increased from 40 to 60 to accommodate larger project name
             max_x = margin
@@ -423,8 +423,8 @@ class MainWindow(QMainWindow):
                 if task_items:
                     task_item = task_items[0]
                     
-                    # Calculate horizontal position
-                    x_pos = margin + positions[task.task_id] * (box_width + horizontal_spacing)
+                    # Calculate horizontal position using global positions
+                    x_pos = margin + global_positions[task.task_id] * (box_width + horizontal_spacing)
                     
                     # Update position
                     task_item.setPos(x_pos, task_y)
@@ -445,38 +445,41 @@ class MainWindow(QMainWindow):
             # Move to next lane
             current_y += 60 + lane_height + lane_spacing
 
-    """
-    Calculate horizontal positions for tasks based on their dependencies.
-    Tasks without dependencies are placed at position 0, while tasks with dependencies
-    are positioned to the right of their most rightward dependency.
-
-    Args:
-        tasks: List of Task objects to position
-
-    Returns:
-        Dictionary mapping task IDs to their x-positions
-    """
-    def calculate_task_positions(self, tasks):
+    def calculate_task_positions(self, all_tasks):
+        """
+        Calculate horizontal positions for all tasks based on their dependencies (project-overarching).
+        Returns a dictionary mapping task IDs to their x-positions.
+        """
         # Create task lookup dictionary
-        task_dict = {task.task_id: task for task in tasks}
-        
-        # Initialize positions
+        task_dict = {task.task_id: task for task in all_tasks}
         positions = {}
-        max_positions = {}  # Track the rightmost position for each task
-        
-        # First pass: assign initial positions
-        for task in tasks:
-            if not task.depends_on_task:  # No dependencies
-                positions[task.task_id] = 0
+        # To avoid infinite recursion in case of circular dependencies
+        visited = set()
+
+        def get_position(task):
+            if task.task_id in positions:
+                return positions[task.task_id]
+            if task.task_id in visited:
+                # Circular dependency fallback
+                return 0
+            visited.add(task.task_id)
+            if not task.depends_on_task:
+                pos = 0
             else:
-                # Find the rightmost position of all dependencies
-                max_dep_pos = -1
-                for dep in task.depends_on_task:
-                    if dep in task_dict:  # Only consider existing dependencies
-                        if dep in positions:
-                            max_dep_pos = max(max_dep_pos, positions[dep])
-                positions[task.task_id] = max_dep_pos + 1
-        
+                dep_positions = []
+                for dep_id in task.depends_on_task:
+                    dep_task = task_dict.get(dep_id)
+                    if dep_task:
+                        dep_positions.append(get_position(dep_task))
+                if dep_positions:
+                    pos = max(dep_positions) + 1
+                else:
+                    pos = 0
+            positions[task.task_id] = pos
+            return pos
+
+        for task in all_tasks:
+            get_position(task)
         return positions
 
     """
@@ -504,6 +507,9 @@ class MainWindow(QMainWindow):
         for task in self.task_list.tasks:
             project_tasks[task.project].append(task)
 
+        # Calculate global positions for all tasks
+        global_positions = self.calculate_task_positions(self.task_list.tasks)
+
         # Draw swim lanes for each project
         current_y = margin
         for project, tasks in project_tasks.items():
@@ -517,17 +523,14 @@ class MainWindow(QMainWindow):
             project_text.setPos(margin, current_y)
             self.scene.addItem(project_text)
 
-            # Calculate horizontal positions for tasks
-            positions = self.calculate_task_positions(tasks)
-
             # Draw tasks in this lane
             task_y = current_y + 60  # Increased from 40 to 60 to accommodate larger project name
             max_x = margin  # Track the rightmost position in this lane
             lane_height = 0  # Track the total height of this lane
             
             for task in tasks:
-                # Calculate horizontal position
-                x_pos = margin + positions[task.task_id] * (box_width + horizontal_spacing)
+                # Calculate horizontal position using global positions
+                x_pos = margin + global_positions[task.task_id] * (box_width + horizontal_spacing)
                 
                 # Create and add the task graphics item
                 task_item = TaskGraphicsItem(task, box_width, min_box_height)
